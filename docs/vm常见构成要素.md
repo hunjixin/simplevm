@@ -141,10 +141,20 @@ https://github.com/ethereum/go-ethereum/blob/d3ece3a07ca5617476f11e909904c847bc0
 
 ### ckb-vm
 
+risc-v 指令机器运算 https://github.com/nervosnetwork/ckb-vm/tree/develop/src/instructions
+
+中间指令定义 https://github.com/nervosnetwork/ckb-vm/blob/develop/src/machine/asm/cdefinitions_generated.h
+
+rust执行器 https://github.com/nervosnetwork/ckb-vm/blob/673fe2ded8514fe0fdf983e3968f72ef22e5d6bc/src/machine/mod.rs#L608
+
+asm执行器 边转换边执行 https://github.com/nervosnetwork/ckb-vm/blob/673fe2ded8514fe0fdf983e3968f72ef22e5d6bc/src/machine/asm/mod.rs#L483
+
+系统调用使用risc-v原生指令来处理 ecall
 
 ### wagon
 
 wasm指令 https://github.com/tetratelabs/wazero/blob/main/internal/wasm/instruction.go
+
 中间指令定义 https://github.com/tetratelabs/wazero/tree/main/internal/wazeroir
 
 编译转换 https://github.com/tetratelabs/wazero/blob/a7e1e693b912e97445600b7e21691e521caf3f8f/internal/engine/compiler/engine.go#L534-L551
