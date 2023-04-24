@@ -17,14 +17,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	_, err = machine.Exec(content, nil)
 	if err != nil {
 		log.Fatal(err)
-	}
-}
-
-func check(e error) {
-	if e != nil {
-		panic(e)
 	}
 }
