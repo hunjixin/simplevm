@@ -11,9 +11,10 @@ import (
 type Machine struct {
 	fileOp IFileOperation
 
-	store  *MyStore
-	engine *wasmtime.Engine
-	linker *wasmtime.Linker
+	params, ret []byte
+	store       *MyStore
+	engine      *wasmtime.Engine
+	linker      *wasmtime.Linker
 }
 
 func NewMachine() *Machine {
@@ -28,13 +29,43 @@ func NewMachine() *Machine {
 }
 
 func (m *Machine) Bind() error {
-	err := m.linker.DefineFunc(m.store, "log", "println", func(c *wasmtime.Caller, offset, size int32) (int32, *wasmtime.Trap) {
+	err := m.linker.DefineFunc(m.store, "sys", "params", func(c *wasmtime.Caller, ptr int32, size int32) (int32, *wasmtime.Trap) {
+		memoryOp := memoryOp{
+			store:  m.store.Store,
+			memory: c.GetExport("memory").Memory(),
+		}
+
+		memoryOp.writeSlice(uintptr(ptr), m.params)
+		memoryOp.writeInt32(uintptr(size), int32(len(m.params)))
+		return 0, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	err = m.linker.DefineFunc(m.store, "sys", "ret", func(c *wasmtime.Caller, ptr int32, size int32) (int32, *wasmtime.Trap) {
+		mp := uintptr(c.GetExport("memory").Memory().Data(m.store)) + uintptr(ptr)
+		sliceHeader := reflect.SliceHeader{
+			Data: mp,
+			Cap:  int(size),
+			Len:  int(size),
+		}
+		slice := *(*string)(unsafe.Pointer(&sliceHeader))
+		m.ret = make([]byte, size)
+		copy(m.ret, slice)
+		return 0, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	err = m.linker.DefineFunc(m.store, "log", "println", func(c *wasmtime.Caller, offset, size int32) (int32, *wasmtime.Trap) {
 		mp := uintptr(c.GetExport("memory").Memory().Data(m.store)) + uintptr(offset)
-		str := reflect.StringHeader{
+		strHeader := reflect.StringHeader{
 			Data: mp,
 			Len:  int(size),
 		}
-		msg := *(*string)(unsafe.Pointer(&str))
+		msg := *(*string)(unsafe.Pointer(&strHeader))
 		log.Println(msg)
 		return 0, nil
 	})
@@ -113,6 +144,8 @@ func (m *Machine) Bind() error {
 func (m *Machine) Exec(code []byte, params []byte) ([]byte, error) {
 	// Once we have our binary `wasm` we can compile that into a `*Module`
 	// which represents compiled JIT code.
+	m.params = params
+
 	module, err := wasmtime.NewModule(m.store.Engine, code)
 	if err != nil {
 		return nil, err
@@ -128,7 +161,7 @@ func (m *Machine) Exec(code []byte, params []byte) ([]byte, error) {
 		return nil, fmt.Errorf("found not found")
 	}
 	_, err = run.Call(m.store)
-	return nil, err
+	return m.ret, err
 }
 
 type memoryOp struct {
